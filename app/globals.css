@@ -32,6 +32,9 @@
   --radius:    8px;
   --radius-lg: 12px;
   --radius-xl: 18px;
+
+  /* Semantic token for Tailwind/shadcn text-muted-foreground */
+  --muted-foreground: var(--text-3);
 }
 
 /* Light theme — black and white only */
@@ -58,6 +61,9 @@ html.light {
   --accent-live: #65a30d;
   --burn-warn:  #ea580c;
   --burn-danger:#dc2626;
+
+  /* Muted text in light mode (so text-muted-foreground is clearly muted) */
+  --muted-foreground: #737373;
 }
 
 html.light .header-unread-badge {
@@ -130,6 +136,11 @@ html.light .hero-email-box.hero-email-box--urgent::before {
 /* Dark theme keeps default (root) values; ensure logo flame stays orange */
 html.dark {
   --logo-flame: #ff5500;
+}
+
+/* Tailwind theme: map muted-foreground so text-muted-foreground works and respects light mode */
+@theme {
+  --color-muted-foreground: var(--muted-foreground);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────── */
@@ -317,12 +328,31 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   width: calc(100% - 96px);
+  transition: grid-template-columns 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero--burned {
+  grid-template-columns: 0fr 1fr;
+  align-items: center;
+}
+
+.hero--burned .hero-right {
+  display: flex;
+  justify-content: center;
 }
 
 .hero-left {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow: hidden;
+  min-width: 0;
+  transition: opacity 0.25s ease;
+}
+
+.hero--burned .hero-left {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .hero-eyebrow {

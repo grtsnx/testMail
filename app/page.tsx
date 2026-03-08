@@ -136,7 +136,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="hero">
+      <section className={`hero${isBurned ? " hero--burned" : ""}`}>
         <div className="hero-left">
           <h1 className="hero-title">
             Your email,<br />

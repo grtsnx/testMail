@@ -1,5 +1,24 @@
 # Poof
 
+<p align="center">
+  <img src="./public/favicon.svg" alt="Poof logo" width="80" height="80" />
+</p>
+
+<p align="center">
+  <strong>Your email, but it burns.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-blue?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind-4-38bdf8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Privacy--first-encrypted-green?style=flat-square" alt="Privacy-first" />
+  <img src="https://img.shields.io/badge/Zero%20server%20storage-IndexedDB-orange?style=flat-square" alt="Zero server storage" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square" alt="License MIT" />
+</p>
+
+---
+
 A privacy-first disposable email service built with Next.js. Generate a temporary inbox, receive real emails in real-time, and burn everything when you're done — no accounts, no server-side storage.
 
 ## Features
