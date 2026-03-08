@@ -2,6 +2,7 @@ import { Syne, JetBrains_Mono, Caveat } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Analytics } from "@vercel/analytics/next"
 
 const syne = Syne({
   subsets: ["latin"],
@@ -25,13 +26,23 @@ export const metadata = {
   title: "Poof — Self-Destructing Email",
   description:
     "Disposable email that actually disappears. Spam-proof, encrypted, real-time. Like a burner phone, but for your inbox.",
-  keywords: ["temp mail", "disposable email", "burner email", "anonymous email", "spam protection"],
+  keywords: [
+    "temp mail",
+    "disposable email",
+    "burner email",
+    "anonymous email",
+    "spam protection",
+  ],
   icons: {
     icon: "/favicon.svg",
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html
       lang="en"
@@ -41,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
+      <Analytics />
     </html>
   )
 }
