@@ -20,14 +20,14 @@ function getStoredEnabled(): boolean {
 }
 
 function getStoredStyle(): SoundStyle {
-  if (typeof window === "undefined") return 1
+  if (typeof window === "undefined") return 4
   try {
     const v = localStorage.getItem(STORAGE_KEY_STYLE)
-    const n = v ? parseInt(v, 10) : 1
+    const n = v ? parseInt(v, 10) : 4
     if (n >= 1 && n <= 4) return n as SoundStyle
-    return 1
+    return 4
   } catch {
-    return 1
+    return 4
   }
 }
 
@@ -48,7 +48,7 @@ const STYLE_LABELS: Record<SoundStyle, string> = {
 
 export function SoundToggle() {
   const [enabled, setEnabled] = useState(true)
-  const [style, setStyle] = useState<SoundStyle>(1)
+  const [style, setStyle] = useState<SoundStyle>(4)
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
