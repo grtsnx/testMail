@@ -7,24 +7,24 @@ import { EmailAddressBar } from "@/components/email-address-bar"
 import { BurnTimer } from "@/components/burn-timer"
 import { Inbox } from "@/components/inbox"
 import { EmailViewer } from "@/components/email-viewer"
+import { HistoryPanel } from "@/components/history-panel"
 import { StoredEmail } from "@/lib/db"
 import { Tray, EnvelopeOpen, GithubLogo, ArrowRight } from "@phosphor-icons/react"
 
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL
 
-function FlameLogo({ size = 18 }: { size?: number }) {
-  const h = size
-  const w = Math.round(size * 0.75)
+function PoofLogo({ size = 22 }: { size?: number }) {
   return (
-    <svg width={w} height={h} viewBox="0 0 16 20" fill="none" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      {/* Envelope body */}
+      <rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      {/* Flap chevron */}
+      <path d="M2 7.5l10 7.5 10-7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Flame rising from envelope top-center */}
       <path
-        d="M8 1 C5 5 2 8 2 11.5 C2 15 4.5 18.5 8 18.5 C11.5 18.5 14 15 14 11.5 C14 8 11 5 8 1Z"
-        fill="currentColor"
-      />
-      <path
-        d="M8 6.5 C6.5 9 5.5 10.5 5.5 12.5 C5.5 14.5 6.5 16.5 8 16.5 C9.5 16.5 10.5 14.5 10.5 12.5 C10.5 10.5 9.5 9 8 6.5Z"
+        d="M12 2 C11 3.5 9.5 4.5 9.5 6 C9.5 7.4 10.6 8.2 12 8.2 C13.4 8.2 14.5 7.4 14.5 6 C14.5 4.5 13 3.5 12 2Z"
         fill="#ff5500"
-        opacity="0.85"
+        opacity="0.9"
       />
     </svg>
   )
@@ -38,16 +38,23 @@ export default function Home() {
     unreadCount,
     isLoading,
     isBurned,
+    archivedAddresses,
+    historyEmails,
+    historyAddress,
     generateNewEmail,
     setBurnDuration,
     selectEmail,
     removeEmail,
     burnNow,
     addEmailFromSSE,
+    viewHistoryAddress,
+    removeArchivedAddress,
+    clearHistoryView,
   } = useEmail()
 
   const [isConnected, setIsConnected] = useState(false)
   const [mobileTab, setMobileTab] = useState<"inbox" | "viewer">("inbox")
+  const [showHistory, setShowHistory] = useState(false)
 
   useSSE({
     address: config?.email ?? null,
@@ -64,6 +71,35 @@ export default function Home() {
     [selectEmail]
   )
 
+  const handleHistorySelect = useCallback(
+    (email: StoredEmail) => {
+      selectEmail(email)
+      setMobileTab("viewer")
+    },
+    [selectEmail]
+  )
+
+  const handleOpenHistory = useCallback(() => {
+    setShowHistory(true)
+    clearHistoryView()
+  }, [clearHistoryView])
+
+  const handleCloseHistory = useCallback(() => {
+    setShowHistory(false)
+    clearHistoryView()
+  }, [clearHistoryView])
+
+  const handleViewHistoryAddress = useCallback(
+    async (email: string) => {
+      if (!email) {
+        clearHistoryView()
+        return
+      }
+      await viewHistoryAddress(email)
+    },
+    [viewHistoryAddress, clearHistoryView]
+  )
+
   return (
     <div className="app">
       <div className="app-noise" aria-hidden />
@@ -71,16 +107,16 @@ export default function Home() {
       <header className="app-header">
         <div className="header-inner">
           <div className="header-logo">
-            <span className="logo-flame-wrap">
-              <FlameLogo size={22} />
+            <span className="logo-wrap">
+              <PoofLogo size={22} />
             </span>
             <span className="logo-text">Poof</span>
           </div>
           <nav className="header-nav">
-          {unreadCount > 0 && (
-            <span className="header-unread-badge">{unreadCount} new</span>
-          )}
-        </nav>
+            {unreadCount > 0 && (
+              <span className="header-unread-badge">{unreadCount} new</span>
+            )}
+          </nav>
         </div>
       </header>
 
@@ -137,16 +173,32 @@ export default function Home() {
           </div>
 
           <aside className={`panel-inbox ${mobileTab === "viewer" ? "panel-mobile-hidden" : ""}`}>
-            <Inbox
-              emails={emails}
-              selectedId={selectedEmail?.id ?? null}
-              onSelect={handleSelect}
-              onDelete={removeEmail}
-              isConnected={isConnected}
-            />
+            {showHistory ? (
+              <HistoryPanel
+                archivedAddresses={archivedAddresses}
+                historyAddress={historyAddress}
+                historyEmails={historyEmails}
+                selectedId={selectedEmail?.id ?? null}
+                onViewAddress={handleViewHistoryAddress}
+                onDeleteAddress={removeArchivedAddress}
+                onSelectEmail={handleHistorySelect}
+                onDeleteEmail={removeEmail}
+                onBack={handleCloseHistory}
+              />
+            ) : (
+              <Inbox
+                emails={emails}
+                selectedId={selectedEmail?.id ?? null}
+                onSelect={handleSelect}
+                onDelete={removeEmail}
+                isConnected={isConnected}
+                onOpenHistory={handleOpenHistory}
+                historyCount={archivedAddresses.length}
+              />
+            )}
           </aside>
           <section className={`panel-viewer ${mobileTab === "inbox" ? "panel-mobile-hidden" : ""}`}>
-            <EmailViewer email={selectedEmail} />
+            <EmailViewer email={selectedEmail} onBack={() => setMobileTab("inbox")} />
           </section>
         </main>
       )}
@@ -154,8 +206,8 @@ export default function Home() {
       <footer className="app-footer">
         <div className="footer-inner">
           <div className="footer-left">
-            <span className="logo-flame-wrap footer-flame">
-              <FlameLogo size={16} />
+            <span className="logo-wrap footer-dim">
+              <PoofLogo size={15} />
             </span>
             <span className="footer-brand-name">Poof</span>
             <span className="footer-sep">·</span>

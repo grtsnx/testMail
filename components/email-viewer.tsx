@@ -1,20 +1,22 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { StoredEmail } from "@/lib/db"
 import { extractOTPs, extractVerifyLinks, createSandboxedIframeContent } from "@/lib/email-utils"
 import { OTPBadge } from "./otp-badge"
 import { formatRelativeTime } from "@/lib/email-utils"
-import { ArrowSquareOut, Paperclip, Eye, Code } from "@phosphor-icons/react"
+import { ArrowSquareOut, Paperclip, Eye, Code, ArrowLeft } from "@phosphor-icons/react"
 
 interface Props {
   email: StoredEmail | null
+  onBack?: () => void
 }
 
-export function EmailViewer({ email }: Props) {
+export function EmailViewer({ email, onBack }: Props) {
   const [viewMode, setViewMode] = useState<"rendered" | "plain">("rendered")
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState<string | null>(null)
+  const [iframeSrc, setIframeSrc] = useState("")
 
   const otps = useMemo(() => (email ? extractOTPs(email.textContent || email.htmlContent) : []), [email])
   const verifyLinks = useMemo(() => (email ? extractVerifyLinks(email.htmlContent) : []), [email])
@@ -22,18 +24,22 @@ export function EmailViewer({ email }: Props) {
     () => (email?.htmlContent ? createSandboxedIframeContent(email.htmlContent) : ""),
     [email]
   )
-  const iframeSrc = useMemo(() => {
-    if (!iframeContent) return ""
+
+  useEffect(() => {
+    if (!iframeContent) {
+      setIframeSrc("")
+      return
+    }
     const blob = new Blob([iframeContent], { type: "text/html" })
-    return URL.createObjectURL(blob)
+    const url = URL.createObjectURL(blob)
+    setIframeSrc(url)
+    return () => { URL.revokeObjectURL(url) }
   }, [iframeContent])
 
   const handleOneClickVerify = async (url: string) => {
     setVerifying(true)
     setVerifyResult(null)
     try {
-      // Open in new tab — headless browser requires server-side Puppeteer
-      // For now, open link and show confirmation
       window.open(url, "_blank", "noopener,noreferrer")
       setVerifyResult("Opened in a new tab. Your account should be verified now. Congrats, you exist.")
     } catch {
@@ -60,6 +66,12 @@ export function EmailViewer({ email }: Props) {
     <div className="viewer">
       <div className="viewer-header">
         <div className="viewer-meta">
+          {onBack && (
+            <button className="viewer-back-btn" onClick={onBack} title="Back to inbox">
+              <ArrowLeft size={15} weight="bold" />
+              <span>Inbox</span>
+            </button>
+          )}
           <h2 className="viewer-subject">{email.subject}</h2>
           <div className="viewer-details">
             <span className="viewer-from">
@@ -111,7 +123,7 @@ export function EmailViewer({ email }: Props) {
 
       {/* Email Body */}
       <div className="viewer-body">
-        {viewMode === "rendered" && email.htmlContent ? (
+        {viewMode === "rendered" && iframeSrc ? (
           <iframe
             src={iframeSrc}
             sandbox="allow-popups allow-popups-to-escape-sandbox"

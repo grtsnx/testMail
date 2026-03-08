@@ -1,7 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <rect width="32" height="32" rx="7" fill="#080808"/>
-  <!-- Outer flame (lime) -->
-  <path d="M16 3 C11 9 7 13.5 7 18.5 C7 23.5 11 28 16 28 C21 28 25 23.5 25 18.5 C25 13.5 21 9 16 3Z" fill="#cdff3e"/>
-  <!-- Inner flame (hot core) -->
-  <path d="M16 11 C13.5 14.5 12 17 12 19.5 C12 22 13.8 24 16 24 C18.2 24 20 22 20 19.5 C20 17 18.5 14.5 16 11Z" fill="#ff5500"/>
+  <!-- Envelope body -->
+  <rect x="4" y="9" width="24" height="16" rx="2" stroke="#cdff3e" stroke-width="1.8" fill="none"/>
+  <!-- Envelope flap chevron -->
+  <path d="M4 11l12 9 12-9" stroke="#cdff3e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Flame rising from top-center -->
+  <path d="M16 3 C15 4.8 13.2 6 13.2 8 C13.2 9.8 14.4 10.8 16 10.8 C17.6 10.8 18.8 9.8 18.8 8 C18.8 6 17 4.8 16 3Z" fill="#ff5500"/>
 </svg>

@@ -5,12 +5,12 @@
 /* Inspired by the intersection of Vercel dark mode and a hacker zine.    */
 
 :root {
-  --bg:        #080808;
-  --bg-2:      #0f0f0f;
-  --bg-3:      #161616;
-  --bg-4:      #1e1e1e;
+  --bg:        #000000;
+  --bg-2:      #0a0a0a;
+  --bg-3:      #111111;
+  --bg-4:      #1a1a1a;
   --border:    #2a2a2a;
-  --border-2:  #3a3a3a;
+  --border-2:   #3a3a3a;
   --text:      #f0f0f0;
   --text-2:    #a0a0a0;
   --text-3:    #555555;
@@ -31,6 +31,25 @@
   --radius:    8px;
   --radius-lg: 12px;
   --radius-xl: 18px;
+}
+
+/* Light theme */
+html.light {
+  --bg:        #fafafa;
+  --bg-2:      #f0f0f0;
+  --bg-3:      #e8e8e8;
+  --bg-4:      #e0e0e0;
+  --border:    #d4d4d4;
+  --border-2:  #a3a3a3;
+  --text:      #171717;
+  --text-2:    #525252;
+  --text-3:    #737373;
+  --accent:    #7cb342;
+  --accent-2:  #689f38;
+  --accent-dim: rgba(124, 179, 66, 0.12);
+  --accent-glow: 0 0 20px rgba(124, 179, 66, 0.2);
+  --danger:    #dc2626;
+  --danger-dim: rgba(220, 38, 38, 0.1);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────────────────── */
@@ -76,10 +95,10 @@ body {
   align-items: center;
   justify-content: center;
   padding: 16px 0;
-  background: rgba(8,8,8,0.85);
-  backdrop-filter: blur(12px);
-  position: sticky;
-  top: 0;
+  background: transparent;
+  backdrop-filter: none;
+  position: static !important;
+  top: auto !important;
   z-index: 100;
 }
 
@@ -112,13 +131,17 @@ body {
   filter: drop-shadow(0 0 8px rgba(205,255,62,0.4));
 }
 
-.logo-flame-wrap {
+.logo-flame-wrap,
+.logo-mail-wrap,
+.logo-wrap {
   display: inline-flex;
   align-items: center;
   color: var(--accent);
   filter: drop-shadow(0 0 7px rgba(205,255,62,0.55));
   flex-shrink: 0;
 }
+
+.footer-dim { opacity: 0.5; }
 
 .logo-text {
   font-family: var(--font-display);
@@ -179,16 +202,41 @@ body {
   background: var(--bg-3);
 }
 
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--border-2);
+  background: var(--bg-3);
+}
+.theme-toggle:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
 /* ─── Hero ───────────────────────────────────────────────────────────── */
 .hero {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 48px;
   align-items: start;
-  padding: 64px 48px 48px;
+  padding: 64px 0 48px;
   max-width: 1200px;
   margin: 0 auto;
-  width: 100%;
+  width: calc(100% - 96px);
 }
 
 .hero-left {
@@ -649,6 +697,125 @@ body {
 
 .inbox-live-badge--on { color: var(--accent); }
 
+.inbox-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inbox-history-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  transition: all 0.12s;
+  letter-spacing: 0.04em;
+}
+.inbox-history-btn:hover { color: var(--text-2); background: var(--bg-3); }
+
+/* ─── History Panel ──────────────────────────────────────────────────── */
+.history-list { display: flex; flex-direction: column; }
+
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  gap: 8px;
+}
+.history-item:hover { background: var(--bg-3); }
+
+.history-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.history-item-email {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 40px 24px;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.history-empty-title {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.history-empty-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.history-back-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.12s;
+}
+.history-back-link:hover { color: var(--accent); }
+
+.history-address-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.history-address-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 24px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
 .inbox-list { display: flex; flex-direction: column; }
 
 .inbox-item {
@@ -763,6 +930,24 @@ body {
 }
 .inbox-item:hover .inbox-item-delete { opacity: 1; }
 .inbox-item-delete:hover { color: var(--danger); background: var(--danger-dim); }
+
+/* ─── Viewer Back Button ─────────────────────────────────────────────── */
+.viewer-back-btn {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 6px;
+  transition: color 0.12s;
+}
+.viewer-back-btn:hover { color: var(--accent); }
 
 /* ─── Email Viewer ───────────────────────────────────────────────────── */
 .panel-viewer {
@@ -1228,8 +1413,9 @@ body {
 
   .hero {
     grid-template-columns: 1fr;
-    padding: 40px 24px 32px;
+    padding: 40px 0 32px;
     gap: 28px;
+    width: calc(100% - 48px);
   }
 
   .hero-sub { max-width: 100%; }
@@ -1268,8 +1454,9 @@ body {
 
   /* Hero */
   .hero {
-    padding: 28px 16px 24px;
+    padding: 28px 0 24px;
     gap: 20px;
+    width: calc(100% - 32px);
   }
   .hero-eyebrow { font-size: 10px; }
   .hero-title { font-size: clamp(28px, 8vw, 40px); }
@@ -1344,6 +1531,14 @@ body {
   .app-footer { padding: 20px 0 24px; }
   .footer-inner { width: calc(100% - 32px); padding: 0; gap: 12px; }
   .footer-legal { display: none; }
+
+  /* Delete button always visible on touch */
+  .inbox-item-delete { opacity: 0.4; }
+  .inbox-item:hover .inbox-item-delete,
+  .inbox-item:active .inbox-item-delete { opacity: 1; }
+
+  /* Back button visible on mobile */
+  .viewer-back-btn { display: flex; }
 }
 
 /* ── Very small (≤ 400px) ── */

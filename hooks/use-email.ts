@@ -1,14 +1,9 @@
 "use client"
 
-/**
- * FLARE useEmail Hook
- * The brain of the operation. Manages your temp email lifecycle.
- * One email per computer. Like a social security number, but for chaos.
- */
-
 import { useState, useEffect, useCallback } from "react"
 import {
   DeviceConfig,
+  ArchivedAddress,
   StoredEmail,
   getDeviceConfig,
   saveDeviceConfig,
@@ -17,6 +12,10 @@ import {
   markEmailRead,
   deleteEmail,
   getUnreadCount,
+  archiveAddress,
+  getArchivedAddresses,
+  deleteArchivedAddress,
+  cleanupOldDeviceConfigs,
 } from "@/lib/db"
 import { generateEmail } from "@/lib/domains"
 
@@ -36,6 +35,9 @@ interface UseEmailReturn {
   unreadCount: number
   isLoading: boolean
   isBurned: boolean
+  archivedAddresses: ArchivedAddress[]
+  historyEmails: StoredEmail[]
+  historyAddress: string | null
   generateNewEmail: (domain?: string) => Promise<void>
   setBurnDuration: (duration: BurnDuration) => Promise<void>
   selectEmail: (email: StoredEmail) => void
@@ -43,6 +45,9 @@ interface UseEmailReturn {
   burnNow: () => Promise<void>
   refreshEmails: () => Promise<void>
   addEmailFromSSE: (raw: RawIncomingEmail) => Promise<void>
+  viewHistoryAddress: (email: string) => Promise<void>
+  removeArchivedAddress: (email: string) => Promise<void>
+  clearHistoryView: () => void
 }
 
 export interface RawIncomingEmail {
@@ -62,6 +67,9 @@ export function useEmail(): UseEmailReturn {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isBurned, setIsBurned] = useState(false)
+  const [archivedAddresses, setArchivedAddresses] = useState<ArchivedAddress[]>([])
+  const [historyEmails, setHistoryEmails] = useState<StoredEmail[]>([])
+  const [historyAddress, setHistoryAddress] = useState<string | null>(null)
 
   const refreshEmails = useCallback(async () => {
     if (!config) return
@@ -71,28 +79,27 @@ export function useEmail(): UseEmailReturn {
     setUnreadCount(count)
   }, [config])
 
-  // Check if the current address has burned
-  const checkBurn = useCallback(
-    (cfg: DeviceConfig) => {
-      if (!cfg.burnAt) return false
-      const burned = Date.now() > cfg.burnAt
-      if (burned) setIsBurned(true)
-      return burned
-    },
-    []
-  )
+  const checkBurn = useCallback((cfg: DeviceConfig) => {
+    if (!cfg.burnAt) return false
+    const burned = Date.now() > cfg.burnAt
+    if (burned) setIsBurned(true)
+    return burned
+  }, [])
 
   // Initialize: load or create device config
   useEffect(() => {
     const init = async () => {
       try {
+        // Clean up any legacy UUID-keyed configs
+        await cleanupOldDeviceConfigs()
+
         let cfg = await getDeviceConfig()
 
         if (!cfg) {
           cfg = await createConfig()
         } else if (cfg.burnAt && Date.now() > cfg.burnAt) {
-          // Address burned — clear emails and generate new one
-          await deleteAllEmailsForAddress(cfg.email)
+          // Address burned — archive it and generate new one
+          await archiveAddress(cfg)
           cfg = await createConfig()
         }
 
@@ -103,6 +110,9 @@ export function useEmail(): UseEmailReturn {
         setEmails(list)
         const count = await getUnreadCount(cfg.email)
         setUnreadCount(count)
+
+        const archived = await getArchivedAddresses()
+        setArchivedAddresses(archived)
       } finally {
         setIsLoading(false)
       }
@@ -126,13 +136,21 @@ export function useEmail(): UseEmailReturn {
     setIsLoading(true)
     try {
       const current = await getDeviceConfig()
-      if (current) await deleteAllEmailsForAddress(current.email)
+      if (current) {
+        // Archive the old address (keep its emails in history)
+        await archiveAddress(current)
+      }
       const cfg = await createConfig(domain)
       setConfig(cfg)
       setEmails([])
       setUnreadCount(0)
       setSelectedEmail(null)
       setIsBurned(false)
+      setHistoryAddress(null)
+      setHistoryEmails([])
+
+      const archived = await getArchivedAddresses()
+      setArchivedAddresses(archived)
     } finally {
       setIsLoading(false)
     }
@@ -150,26 +168,25 @@ export function useEmail(): UseEmailReturn {
     setConfig(updated)
   }, [config])
 
-  const selectEmail = useCallback(
-    async (email: StoredEmail) => {
-      setSelectedEmail(email)
-      if (!email.read) {
-        await markEmailRead(email.id)
-        setEmails((prev) => prev.map((e) => (e.id === email.id ? { ...e, read: true } : e)))
-        setUnreadCount((prev) => Math.max(0, prev - 1))
-      }
-    },
-    []
-  )
+  const selectEmail = useCallback(async (email: StoredEmail) => {
+    setSelectedEmail(email)
+    if (!email.read) {
+      await markEmailRead(email.id)
+      setEmails((prev) => prev.map((e) => (e.id === email.id ? { ...e, read: true } : e)))
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    }
+  }, [])
 
   const removeEmail = useCallback(async (id: string) => {
     await deleteEmail(id)
     setEmails((prev) => prev.filter((e) => e.id !== id))
+    setHistoryEmails((prev) => prev.filter((e) => e.id !== id))
     setSelectedEmail((prev) => (prev?.id === id ? null : prev))
   }, [])
 
   const burnNow = useCallback(async () => {
     if (!config) return
+    await archiveAddress(config)
     await deleteAllEmailsForAddress(config.email)
     const updated: DeviceConfig = { ...config, burnAt: Date.now() - 1 }
     await saveDeviceConfig(updated)
@@ -177,6 +194,8 @@ export function useEmail(): UseEmailReturn {
     setIsBurned(true)
     setEmails([])
     setSelectedEmail(null)
+    const archived = await getArchivedAddresses()
+    setArchivedAddresses(archived)
   }, [config])
 
   const addEmailFromSSE = useCallback(
@@ -212,6 +231,29 @@ export function useEmail(): UseEmailReturn {
     [config, refreshEmails]
   )
 
+  const viewHistoryAddress = useCallback(async (email: string) => {
+    setHistoryAddress(email)
+    const list = await getEmails(email)
+    setHistoryEmails(list)
+    setSelectedEmail(null)
+  }, [])
+
+  const removeArchivedAddress = useCallback(async (email: string) => {
+    await deleteAllEmailsForAddress(email)
+    await deleteArchivedAddress(email)
+    setArchivedAddresses((prev) => prev.filter((a) => a.email !== email))
+    if (historyAddress === email) {
+      setHistoryAddress(null)
+      setHistoryEmails([])
+    }
+  }, [historyAddress])
+
+  const clearHistoryView = useCallback(() => {
+    setHistoryAddress(null)
+    setHistoryEmails([])
+    setSelectedEmail(null)
+  }, [])
+
   return {
     config,
     emails,
@@ -219,15 +261,19 @@ export function useEmail(): UseEmailReturn {
     unreadCount,
     isLoading,
     isBurned,
+    archivedAddresses,
+    historyEmails,
+    historyAddress,
     generateNewEmail,
     setBurnDuration,
-    selectEmail: (email: StoredEmail) => {
-      selectEmail(email)
-    },
+    selectEmail: (email: StoredEmail) => { selectEmail(email) },
     removeEmail,
     burnNow,
     refreshEmails,
     addEmailFromSSE,
+    viewHistoryAddress,
+    removeArchivedAddress,
+    clearHistoryView,
   }
 }
 
@@ -236,7 +282,7 @@ async function createConfig(domain?: string): Promise<DeviceConfig> {
   const now = Date.now()
   const burnMs = BURN_DURATIONS["1hour"]
   const config: DeviceConfig = {
-    id: crypto.randomUUID(),
+    id: "singleton",
     email: email.toLowerCase(),
     domain: email.split("@")[1],
     createdAt: now,

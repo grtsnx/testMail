@@ -1,5 +1,5 @@
 /**
- * FLARE IndexedDB Layer
+ * Poof — IndexedDB Layer
  * Storing your temporary secrets locally since nobody asked us to.
  */
 
@@ -15,9 +15,17 @@ export interface DeviceConfig {
   burnDuration: "10min" | "1hour" | "24hours" | "never"
 }
 
+export interface ArchivedAddress {
+  id: string       // same as the email string (used as key)
+  email: string
+  domain: string
+  createdAt: number
+  archivedAt: number
+}
+
 export interface StoredEmail {
   id: string
-  address: string // which flare address received it
+  address: string // which poof address received it
   from: string
   subject: string
   htmlContent: string // AES-GCM encrypted
@@ -37,7 +45,7 @@ export interface StoredAttachment {
   dataUrl: string // encrypted base64 data URL
 }
 
-interface FlareDB extends DBSchema {
+interface PoofDB extends DBSchema {
   device: {
     key: string
     value: DeviceConfig
@@ -47,16 +55,20 @@ interface FlareDB extends DBSchema {
     value: StoredEmail
     indexes: { "by-address": string; "by-received": number }
   }
+  history: {
+    key: string
+    value: ArchivedAddress
+  }
 }
 
 const DB_NAME = "flare-db"
-const DB_VERSION = 1
+const DB_VERSION = 2
 
-let dbInstance: IDBPDatabase<FlareDB> | null = null
+let dbInstance: IDBPDatabase<PoofDB> | null = null
 
-async function getDB(): Promise<IDBPDatabase<FlareDB>> {
+async function getDB(): Promise<IDBPDatabase<PoofDB>> {
   if (dbInstance) return dbInstance
-  dbInstance = await openDB<FlareDB>(DB_NAME, DB_VERSION, {
+  dbInstance = await openDB<PoofDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains("device")) {
         db.createObjectStore("device", { keyPath: "id" })
@@ -66,16 +78,23 @@ async function getDB(): Promise<IDBPDatabase<FlareDB>> {
         emailStore.createIndex("by-address", "address")
         emailStore.createIndex("by-received", "receivedAt")
       }
+      if (!db.objectStoreNames.contains("history")) {
+        db.createObjectStore("history", { keyPath: "id" })
+      }
     },
   })
   return dbInstance
 }
 
-/** Get the device config (our single record per device) */
+/** Get the device config — prefers the "singleton" key, falls back to most recent */
 export async function getDeviceConfig(): Promise<DeviceConfig | undefined> {
   const db = await getDB()
+  const singleton = await db.get("device", "singleton")
+  if (singleton) return singleton
+  // Legacy fallback: find most recently created
   const all = await db.getAll("device")
-  return all[0]
+  if (!all.length) return undefined
+  return all.sort((a, b) => b.createdAt - a.createdAt)[0]
 }
 
 export async function saveDeviceConfig(config: DeviceConfig): Promise<void> {
@@ -83,10 +102,37 @@ export async function saveDeviceConfig(config: DeviceConfig): Promise<void> {
   await db.put("device", config)
 }
 
-export async function deleteDeviceConfig(): Promise<void> {
+/** Remove any old UUID-keyed device configs (migration cleanup) */
+export async function cleanupOldDeviceConfigs(): Promise<void> {
   const db = await getDB()
-  const config = await getDeviceConfig()
-  if (config) await db.delete("device", config.id)
+  const all = await db.getAll("device")
+  for (const record of all) {
+    if (record.id !== "singleton") await db.delete("device", record.id)
+  }
+}
+
+/** Archive the current address before rotating to a new one */
+export async function archiveAddress(config: DeviceConfig): Promise<void> {
+  const db = await getDB()
+  const archived: ArchivedAddress = {
+    id: config.email.toLowerCase(),
+    email: config.email.toLowerCase(),
+    domain: config.domain,
+    createdAt: config.createdAt,
+    archivedAt: Date.now(),
+  }
+  await db.put("history", archived)
+}
+
+export async function getArchivedAddresses(): Promise<ArchivedAddress[]> {
+  const db = await getDB()
+  const all = await db.getAll("history")
+  return all.sort((a, b) => b.archivedAt - a.archivedAt)
+}
+
+export async function deleteArchivedAddress(email: string): Promise<void> {
+  const db = await getDB()
+  await db.delete("history", email.toLowerCase())
 }
 
 /** Save a new email (encrypts content before storing) */
@@ -128,6 +174,12 @@ export async function getEmail(id: string): Promise<StoredEmail | undefined> {
     htmlContent: await decrypt(email.htmlContent).catch(() => email.textContent),
     textContent: await decrypt(email.textContent).catch(() => ""),
   }
+}
+
+export async function getEmailCountForAddress(address: string): Promise<number> {
+  const db = await getDB()
+  const emails = await db.getAllFromIndex("emails", "by-address", address.toLowerCase())
+  return emails.length
 }
 
 export async function markEmailRead(id: string): Promise<void> {

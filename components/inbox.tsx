@@ -2,7 +2,7 @@
 
 import { StoredEmail } from "@/lib/db"
 import { formatRelativeTime } from "@/lib/email-utils"
-import { EnvelopeSimple, EnvelopeOpen, Trash, Key, Link } from "@phosphor-icons/react"
+import { EnvelopeSimple, EnvelopeOpen, Trash, Key, Link, ClockCounterClockwise } from "@phosphor-icons/react"
 
 interface Props {
   emails: StoredEmail[]
@@ -10,9 +10,11 @@ interface Props {
   onSelect: (email: StoredEmail) => void
   onDelete: (id: string) => Promise<void>
   isConnected: boolean
+  onOpenHistory: () => void
+  historyCount: number
 }
 
-export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected }: Props) {
+export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected, onOpenHistory, historyCount }: Props) {
   if (emails.length === 0) {
     return (
       <div className="inbox-empty">
@@ -30,6 +32,12 @@ export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected }: P
             {isConnected ? "● LIVE" : "◌ CONNECTING"}
           </span>
         </div>
+        {historyCount > 0 && (
+          <button className="inbox-history-btn" onClick={onOpenHistory}>
+            <ClockCounterClockwise size={13} />
+            {historyCount} past address{historyCount !== 1 ? "es" : ""}
+          </button>
+        )}
       </div>
     )
   }
@@ -38,9 +46,15 @@ export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected }: P
     <div className="inbox-list">
       <div className="inbox-header">
         <span className="inbox-count">{emails.length} message{emails.length !== 1 ? "s" : ""}</span>
-        <span className={`inbox-live-badge ${isConnected ? "inbox-live-badge--on" : ""}`}>
-          {isConnected ? "● LIVE" : "◌"}
-        </span>
+        <div className="inbox-header-right">
+          <span className={`inbox-live-badge ${isConnected ? "inbox-live-badge--on" : ""}`}>
+            {isConnected ? "● LIVE" : "◌"}
+          </span>
+          <button className="inbox-history-btn" onClick={onOpenHistory} title="View past addresses">
+            <ClockCounterClockwise size={13} />
+            {historyCount > 0 ? historyCount : ""}
+          </button>
+        </div>
       </div>
       {emails.map((email) => (
         <div
@@ -91,7 +105,6 @@ export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected }: P
 }
 
 function formatFrom(from: string): string {
-  // Extract name from "Name <email>" or just return domain part
   const nameMatch = from.match(/^([^<]+)</)
   if (nameMatch) return nameMatch[1].trim()
   const domain = from.split("@")[1]
