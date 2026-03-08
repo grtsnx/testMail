@@ -76,11 +76,18 @@ html.light .logo-mail-wrap {
   filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.15));
 }
 
-/* Light: mute email address and other secondary text */
+/* Light: mute email address — reduced opacity so it reads as secondary */
+html.light .address-bar .address-display,
+html[data-theme="light"] .address-bar .address-display {
+  color: var(--text-3);
+}
 html.light .address-username,
 html.light .address-domain,
-html.light .address-at {
-  color: var(--text-3);
+html.light .address-at,
+html[data-theme="light"] .address-username,
+html[data-theme="light"] .address-domain,
+html[data-theme="light"] .address-at {
+  color: rgba(0, 0, 0, 0.55);
 }
 
 /* Light: blinkers keep their color */
@@ -876,6 +883,15 @@ body {
   letter-spacing: 0.04em;
 }
 .inbox-history-btn:hover { color: var(--text-2); background: var(--bg-3); }
+.inbox-history-btn--clear { color: var(--text-3); }
+.inbox-history-btn--clear:hover { color: var(--danger); background: var(--danger-dim); }
+
+.inbox-empty-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+}
 
 /* ─── History Panel ──────────────────────────────────────────────────── */
 .history-list { display: flex; flex-direction: column; }

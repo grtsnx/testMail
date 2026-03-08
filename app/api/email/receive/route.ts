@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     if (!isOurDomain(address)) continue
 
-    broadcastToAddress(address, {
+    await broadcastToAddress(address, {
       type: "email",
       email: {
         id,

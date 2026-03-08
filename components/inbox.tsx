@@ -2,7 +2,7 @@
 
 import { StoredEmail } from "@/lib/db"
 import { formatRelativeTime } from "@/lib/email-utils"
-import { EnvelopeSimple, EnvelopeOpen, Trash, Key, Link, ClockCounterClockwise } from "@phosphor-icons/react"
+import { EnvelopeSimple, EnvelopeOpen, Trash, Key, Link, ClockCounterClockwise, FireSimple } from "@phosphor-icons/react"
 
 interface Props {
   emails: StoredEmail[]
@@ -11,10 +11,11 @@ interface Props {
   onDelete: (id: string) => Promise<void>
   isConnected: boolean
   onOpenHistory: () => void
+  onClearAllHistory: () => Promise<void>
   historyCount: number
 }
 
-export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected, onOpenHistory, historyCount }: Props) {
+export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected, onOpenHistory, onClearAllHistory, historyCount }: Props) {
   if (emails.length === 0) {
     return (
       <div className="inbox-empty">
@@ -33,10 +34,16 @@ export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected, onO
           </span>
         </div>
         {historyCount > 0 && (
-          <button className="inbox-history-btn" onClick={onOpenHistory}>
-            <ClockCounterClockwise size={13} />
-            {historyCount} past address{historyCount !== 1 ? "es" : ""}
-          </button>
+          <div className="inbox-empty-history-actions">
+            <button className="inbox-history-btn" onClick={onOpenHistory}>
+              <ClockCounterClockwise size={13} />
+              {historyCount} past address{historyCount !== 1 ? "es" : ""}
+            </button>
+            <button className="inbox-history-btn inbox-history-btn--clear" onClick={onClearAllHistory} title="Clear all history">
+              <FireSimple weight="bold" size={12} />
+              <span>Clear all</span>
+            </button>
+          </div>
         )}
       </div>
     )

@@ -1,11 +1,12 @@
 /**
  * GET /api/email/stream/[address]
  * Server-Sent Events endpoint for real-time email delivery.
- * Your inbox, getting updates faster than your therapist responds.
+ * Each client subscribes to a Redis channel so emails arrive regardless
+ * of which server instance handles the inbound webhook.
  */
 
 import { NextRequest } from "next/server"
-import { addClient, removeClient } from "@/lib/sse-manager"
+import { createSubscriber, emailChannel } from "@/lib/redis"
 
 export const dynamic = "force-dynamic"
 export const runtime = "nodejs"
@@ -16,6 +17,10 @@ export async function GET(
 ) {
   const { address } = await params
   const normalizedAddress = decodeURIComponent(address).toLowerCase()
+  const channel = emailChannel(normalizedAddress)
+
+  const subscriber = createSubscriber()
+  await subscriber.subscribe(channel)
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -24,8 +29,14 @@ export async function GET(
       // Send initial keepalive comment
       controller.enqueue(encoder.encode(": connected\n\n"))
 
-      // Register this client
-      addClient(normalizedAddress, controller)
+      // Forward Redis messages to the SSE client
+      subscriber.on("message", (_channel, message) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${message}\n\n`))
+        } catch {
+          // Client already disconnected
+        }
+      })
 
       // Heartbeat every 25s to keep connection alive through proxies
       const heartbeat = setInterval(() => {
@@ -39,7 +50,7 @@ export async function GET(
       // Cleanup on client disconnect
       req.signal.addEventListener("abort", () => {
         clearInterval(heartbeat)
-        removeClient(normalizedAddress, controller)
+        subscriber.unsubscribe(channel).then(() => subscriber.quit()).catch(() => {})
         try {
           controller.close()
         } catch {

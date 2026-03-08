@@ -96,7 +96,6 @@ export function HistoryPanel({
           <ArrowLeft size={13} /> Back to inbox
         </button>
         <div className="history-header-right">
-          <span className="inbox-count">{archivedAddresses.length} past address{archivedAddresses.length !== 1 ? "es" : ""}</span>
           <button
             className="btn-icon btn-icon--danger history-clear-btn"
             title="Permanently delete all history"

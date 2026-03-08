@@ -11,7 +11,12 @@ import { HistoryPanel } from "@/components/history-panel"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { StoredEmail } from "@/lib/db"
 import { getBurnProgress } from "@/lib/email-utils"
-import { Tray, EnvelopeOpen, GithubLogo, ArrowRight } from "@phosphor-icons/react"
+import {
+  Tray,
+  EnvelopeOpen,
+  GithubLogo,
+  ArrowRight,
+} from "@phosphor-icons/react"
 
 const GITHUB_URL = process.env.NEXT_PUBLIC_GITHUB_URL
 
@@ -19,9 +24,24 @@ function PoofLogo({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
       {/* Envelope body */}
-      <rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" fill="none" />
+      <rect
+        x="2"
+        y="6"
+        width="20"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        fill="none"
+      />
       {/* Flap chevron */}
-      <path d="M2 7.5l10 7.5 10-7.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M2 7.5l10 7.5 10-7.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       {/* Flame rising from envelope top-center */}
       <path
         d="M12 2 C11 3.5 9.5 4.5 9.5 6 C9.5 7.4 10.6 8.2 12 8.2 C13.4 8.2 14.5 7.4 14.5 6 C14.5 4.5 13 3.5 12 2Z"
@@ -65,7 +85,8 @@ export default function Home() {
       setBurnProgress(0)
       return
     }
-    const update = () => setBurnProgress(getBurnProgress(config.createdAt, config.burnAt!))
+    const update = () =>
+      setBurnProgress(getBurnProgress(config.createdAt, config.burnAt!))
     update()
     const t = setInterval(update, 1000)
     return () => clearInterval(t)
@@ -139,7 +160,8 @@ export default function Home() {
       <section className={`hero${isBurned ? " hero--burned" : ""}`}>
         <div className="hero-left">
           <h1 className="hero-title">
-            Your email,<br />
+            <span className="dark:text-zinc-300">Your email,</span>
+            <br />
             <em className="hero-accent">but it burns.</em>
           </h1>
           <p className="hero-sub">
@@ -199,7 +221,9 @@ export default function Home() {
             </button>
           </div>
 
-          <aside className={`panel-inbox ${mobileTab === "viewer" ? "panel-mobile-hidden" : ""}`}>
+          <aside
+            className={`panel-inbox ${mobileTab === "viewer" ? "panel-mobile-hidden" : ""}`}
+          >
             {showHistory ? (
               <HistoryPanel
                 archivedAddresses={archivedAddresses}
@@ -210,7 +234,7 @@ export default function Home() {
                 onDeleteAddress={removeArchivedAddress}
                 onSelectEmail={handleHistorySelect}
                 onDeleteEmail={removeEmail}
-                onClearAllHistory={clearAllHistory}
+                onClearAllHistory={async () => { await clearAllHistory(); handleCloseHistory() }}
                 onBack={handleCloseHistory}
               />
             ) : (
@@ -221,12 +245,18 @@ export default function Home() {
                 onDelete={removeEmail}
                 isConnected={isConnected}
                 onOpenHistory={handleOpenHistory}
+                onClearAllHistory={clearAllHistory}
                 historyCount={archivedAddresses.length}
               />
             )}
           </aside>
-          <section className={`panel-viewer ${mobileTab === "inbox" ? "panel-mobile-hidden" : ""}`}>
-            <EmailViewer email={selectedEmail} onBack={() => setMobileTab("inbox")} />
+          <section
+            className={`panel-viewer ${mobileTab === "inbox" ? "panel-mobile-hidden" : ""}`}
+          >
+            <EmailViewer
+              email={selectedEmail}
+              onBack={() => setMobileTab("inbox")}
+            />
           </section>
         </main>
       )}
@@ -242,7 +272,8 @@ export default function Home() {
             <span className="footer-legal">© {new Date().getFullYear()}</span>
             <span className="footer-sep">·</span>
             <p className="footer-legal">
-              Nothing stored server-side. AES-GCM encrypted in your browser. Burns on command.
+              Nothing stored server-side. AES-GCM encrypted in your browser.
+              Burns on command.
             </p>
           </div>
           {GITHUB_URL && (

@@ -24,11 +24,11 @@ A privacy-first disposable email service built with Next.js. Generate a temporar
 ## Features
 
 - **Disposable inboxes** — Random address generated per device, no sign-up required
-- **Real-time delivery** — Emails arrive instantly via Server-Sent Events (SSE)
+- **Real-time delivery** — Emails arrive instantly via Server-Sent Events (SSE) backed by Redis pub/sub
 - **Client-side encryption** — Email content is AES-GCM encrypted in the browser before being stored in IndexedDB
 - **Auto-burn timer** — Inbox self-destructs after 5 minutes, 1 hour, 24 hours, or never
 - **Burn on command** — Instantly wipe an address and all its emails
-- **Address history** — Browse and search emails from past addresses; clear all history permanently
+- **Address history** — Browse emails from past addresses; clear all history permanently
 - **OTP & verify-link detection** — One-time codes and verification links are automatically flagged
 - **Attachment support** — Attachments stored as encrypted data in IndexedDB
 - **Zero server-side storage** — The server is a relay only; emails are never persisted on the backend
@@ -43,7 +43,7 @@ A privacy-first disposable email service built with Next.js. Generate a temporar
 | UI | HeroUI, Radix UI, shadcn/ui, Tailwind CSS v4 |
 | Icons | Phosphor Icons |
 | Email provider | [Resend](https://resend.com) (inbound webhooks) |
-| Real-time | Server-Sent Events (SSE) |
+| Real-time | Server-Sent Events (SSE) + Redis pub/sub (`ioredis`) |
 | Local storage | IndexedDB via `idb` |
 | Encryption | Web Crypto API — AES-GCM 256-bit |
 | Language | TypeScript |
@@ -54,11 +54,14 @@ A privacy-first disposable email service built with Next.js. Generate a temporar
 User opens app
   └─> Device config created in IndexedDB (email address + burn timer)
   └─> SSE connection opened to /api/email/stream/[address]
+  └─> Stream handler subscribes to Redis channel poof:email:[address]
 
 Sender sends email to anything@yourdomain.com
   └─> Resend receives it via inbound MX
   └─> Resend POSTs to /api/email/receive (webhook)
-  └─> Server validates payload, broadcasts via SSE
+  └─> Server validates payload
+  └─> Publishes to Redis channel poof:email:[address]
+  └─> All subscribed SSE streams forward the event to their clients
 
 Browser receives SSE event
   └─> Email content encrypted with AES-GCM device key
@@ -76,6 +79,7 @@ User burns the inbox
 ### Prerequisites
 
 - Node.js 18+
+- A Redis instance (local, [Upstash](https://upstash.com), Railway, etc.)
 - A [Resend](https://resend.com) account with a verified domain and inbound email enabled
 
 ### 1. Clone and install
@@ -92,22 +96,37 @@ npm install
 cp .env.local.example .env.local
 ```
 
-| Variable | Description |
-|---|---|
-| `RESEND_API_KEY` | Your Resend API key |
-| `NEXT_PUBLIC_EMAIL_DOMAIN` | Your verified domain (e.g. `yourdomain.com`) |
-| `WEBHOOK_SECRET` | Optional random secret for webhook validation |
-| `NEXT_PUBLIC_APP_URL` | Your deployed app URL |
-| `NEXT_PUBLIC_GITHUB_URL` | Optional — shows a GitHub link in the header |
+| Variable | Required | Description |
+|---|---|---|
+| `RESEND_API_KEY` | Yes | Your Resend API key |
+| `NEXT_PUBLIC_EMAIL_DOMAIN` | Yes | Your verified domain (e.g. `yourdomain.com`) |
+| `REDIS_URL` | Yes | Redis connection URL (e.g. `redis://localhost:6379`) |
+| `WEBHOOK_SECRET` | No | Random secret for webhook request validation |
+| `NEXT_PUBLIC_APP_URL` | No | Your deployed app URL |
+| `NEXT_PUBLIC_GITHUB_URL` | No | Shows a GitHub link in the header if set |
 
-### 3. Configure Resend inbound
+### 3. Start Redis
+
+For local development:
+
+```bash
+# macOS
+brew install redis && brew services start redis
+
+# Docker
+docker run -p 6379:6379 redis:alpine
+```
+
+For production, use a hosted Redis service such as [Upstash](https://upstash.com) (free tier available) and set `REDIS_URL` to the connection string they provide.
+
+### 4. Configure Resend inbound
 
 1. Go to **Resend → Domains → your domain → Inbound**
 2. Add the MX record Resend provides
 3. Set the webhook URL to `https://yourapp.com/api/email/receive`
 4. Optionally set a webhook secret and add it to `WEBHOOK_SECRET`
 
-### 4. Run locally
+### 5. Run locally
 
 ```bash
 npm run dev
@@ -123,8 +142,8 @@ Open [http://localhost:3000](http://localhost:3000).
 app/
   api/
     email/
-      receive/route.ts          # POST — Resend inbound webhook
-      stream/[address]/route.ts # GET  — SSE stream per address
+      receive/route.ts          # POST — Resend inbound webhook → publishes to Redis
+      stream/[address]/route.ts # GET  — SSE stream; subscribes to Redis channel
   layout.tsx
   page.tsx
   globals.css
@@ -144,11 +163,12 @@ hooks/
   use-sse.ts                    # SSE connection management
 
 lib/
+  redis.ts                      # ioredis singleton publisher + subscriber factory
+  sse-manager.ts                # broadcastToAddress — publishes via Redis
   crypto.ts                     # AES-GCM encrypt / decrypt (Web Crypto)
   db.ts                         # IndexedDB schema + CRUD via idb
   domains.ts                    # Address generation
   email-utils.ts                # OTP extraction, link detection, burn progress
-  sse-manager.ts                # Server-side SSE client registry
   utils.ts                      # Class name utilities
 ```
 
@@ -156,7 +176,7 @@ lib/
 
 ### `POST /api/email/receive`
 
-Resend inbound webhook. Validates the payload and broadcasts the email to any connected SSE clients for that address.
+Resend inbound webhook. Validates the payload and publishes the email to the Redis channel for the recipient address. All connected SSE streams subscribed to that channel receive the event.
 
 **Response:**
 ```json
@@ -165,7 +185,7 @@ Resend inbound webhook. Validates the payload and broadcasts the email to any co
 
 ### `GET /api/email/stream/[address]`
 
-Opens a persistent SSE stream. Emits events when emails arrive for the given address. Sends a heartbeat comment every 25 seconds to keep the connection alive through proxies.
+Opens a persistent SSE stream. Subscribes to the Redis channel `poof:email:[address]` and forwards any published messages to the client. Sends a heartbeat comment every 25 seconds to keep the connection alive through proxies. Unsubscribes and closes the Redis connection on client disconnect.
 
 **Event payload:**
 ```json
@@ -191,12 +211,10 @@ Opens a persistent SSE stream. Emits events when emails arrive for the given add
 | Attachments | IndexedDB (browser) | Yes — AES-GCM 256-bit |
 | Device config (address, timer) | IndexedDB (browser) | No |
 | Encryption key | localStorage | No (base64 raw key) |
-| Emails in transit (SSE) | In-memory server map | No (HTTPS in prod) |
+| Emails in transit (Redis → SSE) | Redis pub/sub (in-flight only) | No (use TLS in prod) |
 | Emails at rest (server) | Nowhere | — |
 
-The server never persists email content. The SSE manager holds an in-memory map of live connections only; emails are forwarded and discarded.
-
-> **Multi-instance deployments:** The SSE manager uses a Node.js in-process `Map`. For multi-instance setups (serverless, multiple containers), replace it with a Redis pub/sub channel.
+The server never persists email content. Redis is used solely as a pub/sub message bus — messages are delivered to subscribers and immediately discarded.
 
 ## Scripts
 
