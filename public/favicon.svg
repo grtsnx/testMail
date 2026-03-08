@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="#080808"/>
+  <!-- Outer flame (lime) -->
+  <path d="M16 3 C11 9 7 13.5 7 18.5 C7 23.5 11 28 16 28 C21 28 25 23.5 25 18.5 C25 13.5 21 9 16 3Z" fill="#cdff3e"/>
+  <!-- Inner flame (hot core) -->
+  <path d="M16 11 C13.5 14.5 12 17 12 19.5 C12 22 13.8 24 16 24 C18.2 24 20 22 20 19.5 C20 17 18.5 14.5 16 11Z" fill="#ff5500"/>
+</svg>

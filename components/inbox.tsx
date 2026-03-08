@@ -1,0 +1,99 @@
+"use client"
+
+import { StoredEmail } from "@/lib/db"
+import { formatRelativeTime } from "@/lib/email-utils"
+import { EnvelopeSimple, EnvelopeOpen, Trash, Key, Link } from "@phosphor-icons/react"
+
+interface Props {
+  emails: StoredEmail[]
+  selectedId: string | null
+  onSelect: (email: StoredEmail) => void
+  onDelete: (id: string) => Promise<void>
+  isConnected: boolean
+}
+
+export function Inbox({ emails, selectedId, onSelect, onDelete, isConnected }: Props) {
+  if (emails.length === 0) {
+    return (
+      <div className="inbox-empty">
+        <div className="inbox-empty-icon">
+          <EnvelopeSimple size={40} weight="thin" />
+        </div>
+        <p className="inbox-empty-title">Nothing here yet.</p>
+        <p className="inbox-empty-sub">
+          {isConnected
+            ? "Refreshing endlessly won't help. Trust us, we checked."
+            : "Connecting to the mothership..."}
+        </p>
+        <div className={`inbox-status-dot ${isConnected ? "inbox-status-dot--live" : "inbox-status-dot--connecting"}`}>
+          <span className={isConnected ? "status-live" : "status-connecting"}>
+            {isConnected ? "● LIVE" : "◌ CONNECTING"}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="inbox-list">
+      <div className="inbox-header">
+        <span className="inbox-count">{emails.length} message{emails.length !== 1 ? "s" : ""}</span>
+        <span className={`inbox-live-badge ${isConnected ? "inbox-live-badge--on" : ""}`}>
+          {isConnected ? "● LIVE" : "◌"}
+        </span>
+      </div>
+      {emails.map((email) => (
+        <div
+          key={email.id}
+          className={`inbox-item ${selectedId === email.id ? "inbox-item--selected" : ""} ${!email.read ? "inbox-item--unread" : ""}`}
+          onClick={() => onSelect(email)}
+        >
+          <div className="inbox-item-icon">
+            {email.read ? (
+              <EnvelopeOpen size={16} weight="regular" />
+            ) : (
+              <EnvelopeSimple size={16} weight="fill" />
+            )}
+          </div>
+          <div className="inbox-item-body">
+            <div className="inbox-item-row">
+              <span className="inbox-item-from">{formatFrom(email.from)}</span>
+              <span className="inbox-item-time">{formatRelativeTime(email.receivedAt)}</span>
+            </div>
+            <div className="inbox-item-subject">{email.subject}</div>
+            <div className="inbox-item-badges">
+              {email.hasOtp && (
+                <span className="inbox-badge inbox-badge--otp">
+                  <Key size={10} weight="fill" /> OTP
+                </span>
+              )}
+              {email.hasVerifyLink && (
+                <span className="inbox-badge inbox-badge--link">
+                  <Link size={10} weight="bold" /> Verify
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            className="inbox-item-delete"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(email.id)
+            }}
+            title="Delete this email"
+          >
+            <Trash size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function formatFrom(from: string): string {
+  // Extract name from "Name <email>" or just return domain part
+  const nameMatch = from.match(/^([^<]+)</)
+  if (nameMatch) return nameMatch[1].trim()
+  const domain = from.split("@")[1]
+  return domain ? domain.split(".")[0] : from
+}
