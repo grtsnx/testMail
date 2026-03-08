@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS=--no-deprecation next dev --turbopack",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS=--no-deprecation next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
