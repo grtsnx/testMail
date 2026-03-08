@@ -33,7 +33,7 @@ A privacy-first disposable email service built with Next.js. Generate a temporar
 - **Attachment support** — Attachments stored as encrypted data in IndexedDB
 - **Zero server-side storage** — The server is a relay only; emails are never persisted on the backend
 - **Dark / light theme**
-- **Responsive** — Mobile-friendly two-tab layout (Inbox / Viewer)
+- **Responsive** — Mobile-friendly layout: email on one line, compact burn timer (flame + countdown + duration) with Copy/New as icon-only; rounded email box with draining border
 
 ## Tech Stack
 
@@ -87,7 +87,7 @@ User burns the inbox
 ```bash
 git clone https://github.com/yourusername/poof.git
 cd poof
-npm install
+pnpm install
 ```
 
 ### 2. Configure environment
@@ -102,8 +102,8 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_EMAIL_DOMAIN` | Yes | Your verified domain (e.g. `yourdomain.com`) |
 | `REDIS_URL` | Yes | Redis connection URL (e.g. `redis://localhost:6379`) |
 | `WEBHOOK_SECRET` | No | Random secret for webhook request validation |
-| `NEXT_PUBLIC_APP_URL` | No | Your deployed app URL |
-| `NEXT_PUBLIC_GITHUB_URL` | No | Shows a GitHub link in the header if set |
+| `NEXT_PUBLIC_APP_URL` | No | Your deployed app URL (use an ngrok URL for local inbound) |
+| `NEXT_PUBLIC_GITHUB_URL` | No | If set, shows a GitHub link in the footer |
 
 ### 3. Start Redis
 
@@ -129,12 +129,12 @@ For production, use a hosted Redis service such as [Upstash](https://upstash.com
 ### 5. Run locally
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> **Local inbound emails:** Resend can't reach `localhost`. Use a tunnel like [ngrok](https://ngrok.com) and point the Resend webhook at your tunnel URL during development.
+> **Local inbound emails:** Resend can't reach `localhost`. Use a tunnel like [ngrok](https://ngrok.com) and set `NEXT_PUBLIC_APP_URL` to your tunnel URL; point the Resend webhook at `https://your-ngrok-url.ngrok-free.app/api/email/receive` during development.
 
 ## Project Structure
 
@@ -144,23 +144,29 @@ app/
     email/
       receive/route.ts          # POST — Resend inbound webhook → publishes to Redis
       stream/[address]/route.ts # GET  — SSE stream; subscribes to Redis channel
+      generate/route.ts         # POST — optional server-side address generation
   layout.tsx
   page.tsx
   globals.css
 
 components/
-  email-address-bar.tsx         # Address display, copy, regenerate
-  burn-timer.tsx                # Countdown timer + duration picker
+  email-address-bar.tsx         # Address display, copy, regenerate (icon-only on mobile)
+  burn-timer.tsx                # Countdown + duration picker; compact row on mobile
   inbox.tsx                     # Email list
   email-viewer.tsx              # Email content renderer
-  history-panel.tsx             # Past addresses + clear history
-  otp-badge.tsx                 # OTP / verify-link highlight
+  history-panel.tsx             # Past addresses + clear all history
   theme-toggle.tsx
   theme-provider.tsx
+  sound-toggle.tsx              # Optional new-email sound
+  favicon-badge.tsx             # Unread count in favicon
+  ui/
+    button.tsx                  # Shared button component
 
 hooks/
-  use-email.ts                  # Core state: config, emails, burn logic
+  use-email.ts                  # Core state: config, emails, burn logic, history
   use-sse.ts                    # SSE connection management
+  use-is-mobile.ts              # Viewport ≤640px for responsive layout
+  use-new-email-sound.ts        # Optional sound on new email
 
 lib/
   redis.ts                      # ioredis singleton publisher + subscriber factory
@@ -219,14 +225,18 @@ The server never persists email content. Redis is used solely as a pub/sub messa
 ## Scripts
 
 ```bash
-npm run dev       # Start dev server with Turbopack
-npm run build     # Production build
-npm run start     # Start production server
-npm run lint      # ESLint
-npm run format    # Prettier
-npm run typecheck # TypeScript type check
+pnpm dev       # Start dev server with Turbopack
+pnpm build     # Production build
+pnpm start     # Start production server
+pnpm lint      # ESLint
+pnpm format    # Prettier
+pnpm typecheck # TypeScript type check
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and pull request guidelines. This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
